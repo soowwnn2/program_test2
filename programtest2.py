@@ -1,3 +1,6 @@
+import streamlit as st
+
+# 1. 퀴즈 데이터
 quiz_data = {
     "인상주의": {
         "question": "다음 중 인상주의 화풍의 특징은 무엇인가요?",
@@ -19,67 +22,84 @@ quiz_data = {
     }
 }
 
-codes_collected = []
+# 2. 상태 저장소(Session State) 초기화
+# 웹은 버튼을 누를 때마다 새로고침 되므로, 획득한 암호와 현재 방 위치를 저장해두어야 합니다.
+if "codes" not in st.session_state:
+    st.session_state.codes = []
+if "room" not in st.session_state:
+    st.session_state.room = "main"
 
-def ask_quiz(topic):
-    q = quiz_data[topic]
-    print(f"\n[{topic} 전시실]")
-    print(q["question"])
-    for opt in q["options"]:
-        print(opt)
+st.title("🎨 미술관 탈출 게임")
+
+# 3. 메인 화면 (복도)
+if st.session_state.room == "main":
+    st.write("각 전시실에서 퀴즈를 풀어 암호 조각을 모으고, 마지막 방에서 암호를 맞혀 탈출하세요!!")
+    st.write(f"**현재 모은 암호 조각: {len(st.session_state.codes)} / 3**")
     
-    user = input("정답 번호를 입력하세요: ")
-    if user == q["answer"]:
-        if q["code"] not in codes_collected:
-            codes_collected.append(q["code"])
-            print(f"정답입니다! 암호 조각 '{q['code']}'를 획득했습니다.")
+    st.write("---")
+    
+    # 버튼을 누르면 해당 방으로 이동하도록 상태(room) 변경 후 새로고침(rerun)
+    if st.button("1. 인상주의 전시실"):
+        st.session_state.room = "인상주의"
+        st.rerun()
+    if st.button("2. 추상화 전시실"):
+        st.session_state.room = "추상화"
+        st.rerun()
+    if st.button("3. 현대 설치미술 전시실"):
+        st.session_state.room = "현대미술"
+        st.rerun()
+        
+    st.write("---")
+    if st.button("🚪 4. 마지막 방으로 이동"):
+        if len(st.session_state.codes) == 3:
+            st.session_state.room = "마지막방"
+            st.rerun()
         else:
-            print("이미 획득한 암호 조각입니다.")
-    else:
-        print("오답입니다.")
+            st.warning("⚠️ 암호 조각이 부족합니다. 모든 전시실의 퀴즈를 풀어 조각을 3개 모으세요.")
 
-def attempt_escape():
-    user_code = input("\n암호를 입력하세요: ").strip().lower()
-    correct_code = "bac"
-
-    if user_code == correct_code:
-        print("\n🎉 암호가 맞았습니다. 미술관에서 탈출에 성공했습니다! 🎉")
-        return True  # 탈출 성공 시 True 반환
-    else:
-        print("❌ 암호가 틀렸습니다. 다시 시도하세요.")
-        return False # 탈출 실패 시 False 반환
-
-def enter_gallery():
-    while True:
-        print("\n" + "="*30)
-        print("1. 인상주의 전시실")
-        print("2. 추상화 전시실")
-        print("3. 현대 설치미술 전시실")
-        print(f"4. 마지막 방으로 이동 (현재 암호 조각: {len(codes_collected)}/3)")
-        choice = input("선택: ")
-
-        if choice == "1":
-            ask_quiz("인상주의")
-        elif choice == "2":
-            ask_quiz("추상화")
-        elif choice == "3":
-            ask_quiz("현대미술")
-        elif choice == "4":
-            # 암호 조각 3개를 모두 모아야만 입장 가능하도록 수정 (원래는 > 0 이었음)
-            if len(codes_collected) == 3:
-                # attempt_escape()가 True(탈출 성공)를 반환하면 루프 탈출(break)
-                if attempt_escape():
-                    break
+# 4. 퀴즈 화면 (인상주의, 추상화, 현대미술)
+elif st.session_state.room in quiz_data:
+    topic = st.session_state.room
+    q = quiz_data[topic]
+    
+    st.subheader(f"[{topic} 전시실]")
+    st.write(q["question"])
+    for opt in q["options"]:
+        st.write(opt)
+        
+    # 터미널 input() 대신 웹 전용 텍스트 입력창 사용
+    user_answer = st.text_input("정답 번호를 입력하고 확인 버튼을 누르세요:")
+    
+    if st.button("정답 확인"):
+        if user_answer == q["answer"]:
+            if q["code"] not in st.session_state.codes:
+                st.session_state.codes.append(q["code"])
+                st.success(f"🎉 정답입니다! 암호 조각 '{q['code']}'를 획득했습니다.")
             else:
-                print("\n⚠️ 암호 조각이 부족합니다. 모든 전시실의 퀴즈를 풀어 조각을 3개 모으세요.")
+                st.info("이미 획득한 암호 조각입니다.")
         else:
-            print("잘못된 입력입니다. 1~4 사이의 숫자를 입력해주세요.")
+            st.error("❌ 오답입니다.")
+            
+    st.write("---")
+    if st.button("메인 복도로 돌아가기"):
+        st.session_state.room = "main"
+        st.rerun()
 
-def start_game():
-    print("🎨 미술관 탈출 게임에 오신 것을 환영합니다.")
-    print("각 전시실에서 퀴즈를 풀어 암호 조각을 모으고,")
-    print("마지막 방에서 암호를 맞혀 미술관을 탈출하세요!!\n")
-    enter_gallery()
-
-# 게임 실행
-start_game()
+# 5. 마지막 방 (탈출)
+elif st.session_state.room == "마지막방":
+    st.subheader("🚪 마지막 방")
+    st.write("모은 암호 조각을 조합하여 탈출 암호를 입력하세요.")
+    
+    escape_code = st.text_input("암호를 입력하세요:").strip().lower()
+    
+    if st.button("탈출 시도"):
+        if escape_code == "bac":
+            st.balloons() # 정답 시 풍선 이펙트
+            st.success("🎉 암호가 맞았습니다. 미술관에서 탈출에 성공했습니다! 🎉")
+        else:
+            st.error("❌ 암호가 틀렸습니다.")
+            
+    st.write("---")
+    if st.button("메인 복도로 돌아가기"):
+        st.session_state.room = "main"
+        st.rerun()
